@@ -70,26 +70,31 @@ fn handle_client(mut stream: &TcpStream) -> Result<(), Error> {
                 _ => {
                     let command = line.split_ascii_whitespace().next();
 
-                    match command {
-                        Some("HELP") => {
+                    let cmd = match command {
+                        Some(x) => String::from(x).to_ascii_uppercase(),
+                        None => String::from(""),
+                    };
+
+                    match cmd.as_str() {
+                        "HELP" => {
                             writer.write_all("250 Go read RFC822\r\n".as_bytes())?;
                             writer.flush()?;
                         }
-                        Some("NOOP") => {
+                        "NOOP" => {
                             writer.write_all("250 fine, waste my time.\r\n".as_bytes())?;
                             writer.flush()?;
                         }
-                        Some("QUIT") => {
+                        "QUIT" => {
                             writer.write_all("221 yeah, whatever, buh bye.\r\n".as_bytes())?;
                             writer.flush()?;
                             return Ok(());
                         }
-                        Some("VRFY") => {
+                        "VRFY" => {
                             writer.write_all("250 yeah, sure, whatever.\r\n".as_bytes())?;
                             writer.flush()?;
                         }
 
-                        Some("RSET") => {
+                        "RSET" => {
                             stream.write_all("250 reset, fine.\r\n".as_bytes())?;
                             state = match state {
                                 SmtpState::Start => SmtpState::Start,
@@ -97,20 +102,20 @@ fn handle_client(mut stream: &TcpStream) -> Result<(), Error> {
                             };
                         }
 
-                        Some("HELO") => {
+                        "HELO" => {
                             state = SmtpState::Hello;
                             writer.write_all("250 howdy!\r\n".as_bytes())?;
                             writer.flush()?;
                         }
 
-                        Some("EHLO") => {
+                        "EHLO" => {
                             state = SmtpState::Hello;
                             writer.write_all("250-thought.net greets you.\r\n".as_bytes())?;
                             writer.write_all("250 HELP\r\n".as_bytes())?;
                             writer.flush()?;
                         }
 
-                        Some("MAIL") => {
+                        "MAIL" => {
                             state = match state {
                                 SmtpState::Hello => {
                                     writer.write_all("250 ok, let's move on\r\n".as_bytes())?;
@@ -128,7 +133,7 @@ fn handle_client(mut stream: &TcpStream) -> Result<(), Error> {
                             };
                         }
 
-                        Some("RCPT") => {
+                        "RCPT" => {
                             state = match state {
                                 SmtpState::Mail => {
                                     writer.write_all("250 ok, let's move on\r\n".as_bytes())?;
@@ -151,7 +156,7 @@ fn handle_client(mut stream: &TcpStream) -> Result<(), Error> {
                             };
                         }
 
-                        Some("DATA") => {
+                        "DATA" => {
                             state = match state {
                                 SmtpState::Rcpt => {
                                     writer.write_all(
@@ -172,12 +177,7 @@ fn handle_client(mut stream: &TcpStream) -> Result<(), Error> {
                             };
                         }
 
-                        Some(_) => {
-                            writer.write_all("502 command not implemented\r\n".as_bytes())?;
-                            writer.flush()?;
-                        }
-
-                        None => {
+                        _ => {
                             writer.write_all("502 command not implemented\r\n".as_bytes())?;
                             writer.flush()?;
                         }
