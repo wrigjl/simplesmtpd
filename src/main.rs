@@ -36,6 +36,7 @@
 use std::{
     io::{BufRead, BufReader, BufWriter, Error, Write},
     net::{TcpListener, TcpStream},
+    str::FromStr,
     thread,
 };
 
@@ -164,7 +165,7 @@ fn handle_cmd_rcpt(
 }
 
 fn handle_cmd_helo(
-    line: &String,
+    line: &str,
     oldstate: SmtpState,
     writer: &mut BufWriter<&TcpStream>,
 ) -> Result<SmtpState, Error> {
@@ -200,13 +201,81 @@ fn handle_cmd_helo(
     }
 }
 
+fn cmd_ehlo_response(writer: &mut BufWriter<&TcpStream>) -> Result<SmtpState, Error> {
+    writer.write_all("250-simplesmtp.thought.net greets you.\r\n".as_bytes())?;
+    writer.write_all("250 HELP\r\n".as_bytes())?;
+    return Ok(SmtpState::Hello);
+}
+
 fn handle_cmd_ehlo(
-    _oldstate: SmtpState,
+    line: &str,
+    oldstate: SmtpState,
     writer: &mut BufWriter<&TcpStream>,
 ) -> Result<SmtpState, Error> {
-    writer.write_all("250-thought.net greets you.\r\n".as_bytes())?;
-    writer.write_all("250 HELP\r\n".as_bytes())?;
-    Ok(SmtpState::Hello)
+    let chunks: Vec<_> = line.split(' ').collect();
+
+    if chunks.len() == 1 {
+        writer.write_all("501 missing argument\r\n".as_bytes())?;
+        writer.flush()?;
+        return Ok(oldstate);
+    }
+    if chunks.len() > 2 {
+        writer.write_all("501 too many arguments\r\n".as_bytes())?;
+        writer.flush()?;
+        return Ok(oldstate);
+    }
+
+    let arg = chunks[1];
+
+    // There are four possibilities here:
+    // "[ipv4addr]" <- IPv4 literal
+    // "[IPv6:ipv6addr]" <- IPv6 literal
+    // "[xxx:yyy]" <- general address literal
+    // "domain.example.com" <- domain name
+
+    if arg.is_empty() {
+        writer.write_all("501 zero length argument\r\n".as_bytes())?;
+        writer.flush()?;
+    }
+
+    if arg.starts_with('[') && arg.ends_with(']') {
+        let arg = arg.trim_end_matches(']');
+        let arg = arg.trim_start_matches('[');
+
+        // This is a literal of some kind.
+
+        if std::net::IpAddr::from_str(arg).is_ok() {
+            // Looks like an ipv4 address
+            return cmd_ehlo_response(writer);
+        }
+
+        if arg.starts_with("IPv6:") {
+            // parse IPv6 address
+            let arg = arg.trim_start_matches("IPv6:");
+            if std::net::Ipv6Addr::from_str(arg).is_err() {
+                writer.write_all("501 invalid ipv6 address\r\n".as_bytes())?;
+                writer.flush()?;
+                return Ok(oldstate);
+            }
+            return cmd_ehlo_response(writer);
+        }
+
+        // XXX handle general address literals... for now
+        // we just assume they look good.
+    } else {
+        //
+        // This only verifies that it parses correctly as a domain name
+        // this-domain-shouldnt-exists.com would be fine whether or not
+        // the domain is actually registered or not.
+        //
+        if addr::parse_domain_name(chunks[1]).is_err() {
+            writer.write_all("501 invalid argument (not a valid domain name)\r\n".as_bytes())?;
+            writer.flush()?;
+            return Ok(oldstate);
+        }
+    }
+
+    cmd_ehlo_response(writer)
 }
 
 fn handle_cmd_data(
@@ -273,7 +342,7 @@ fn handle_client(stream: &TcpStream) -> Result<(), Error> {
 
                     match cmd.as_str() {
                         "DATA" => state = handle_cmd_data(state, &mut writer)?,
-                        "EHLO" => state = handle_cmd_ehlo(state, &mut writer)?,
+                        "EHLO" => state = handle_cmd_ehlo(&line, state, &mut writer)?,
                         "HELO" => state = handle_cmd_helo(&line, state, &mut writer)?,
                         "HELP" => state = handle_cmd_help(state, &mut writer)?,
                         "MAIL" => state = handle_cmd_mail(state, &mut writer)?,
