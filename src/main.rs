@@ -1,12 +1,43 @@
-use std::{
-    io::Write,
-    net::{TcpListener, TcpStream},
-};
+// Copyright (c) 2022, jason@thought.net
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+// 2. Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in
+//    the documentation and/or other materials provided with the
+//    distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
 
-use spmc;
-use std::io::BufRead;
-use std::io::Error;
-use std::thread;
+//
+// This is a really simple SMTP service. It doesn't do anything more
+// than parse the commands and return success if the protocol appears
+// to be followed correctly. This is mainly so that my students in
+// CS3337 at ISU have an SMTP server to play with without consequences.
+//
+// Also, it is an excuse for me to play with rust development.
+//
+
+use std::{
+    io::{BufRead, BufReader, BufWriter, Error, Write},
+    net::{TcpListener, TcpStream},
+    thread,
+};
 
 enum SmtpState {
     Start,
@@ -14,6 +45,7 @@ enum SmtpState {
     Mail,
     Rcpt,
     Data,
+    Quit,
 }
 
 fn main() -> std::io::Result<()> {
@@ -44,9 +76,142 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn handle_client(mut stream: &TcpStream) -> Result<(), Error> {
-    let mut writer = std::io::BufWriter::new(stream);
-    let reader = std::io::BufReader::new(stream);
+fn handle_cmd_mail(
+    oldstate: SmtpState,
+    writer: &mut BufWriter<&TcpStream>,
+) -> Result<SmtpState, Error> {
+    match oldstate {
+        SmtpState::Hello => {
+            writer.write_all("250 ok, let's move on\r\n".as_bytes())?;
+            writer.flush()?;
+            Ok(SmtpState::Mail)
+        }
+
+        _ => {
+            writer.write_all("503 bad sequence of commands (didn't say hello)\r\n".as_bytes())?;
+            writer.flush()?;
+            Ok(oldstate)
+        }
+    }
+}
+
+fn handle_cmd_help(
+    oldstate: SmtpState,
+    writer: &mut BufWriter<&TcpStream>,
+) -> Result<SmtpState, Error> {
+    writer.write_all("250 Go read RFC5321.\r\n".as_bytes())?;
+    writer.flush()?;
+    Ok(oldstate)
+}
+
+fn handle_cmd_noop(
+    oldstate: SmtpState,
+    writer: &mut BufWriter<&TcpStream>,
+) -> Result<SmtpState, Error> {
+    writer.write_all("250 fine, waste my time.\r\n".as_bytes())?;
+    writer.flush()?;
+    Ok(oldstate)
+}
+
+fn handle_cmd_quit(
+    _oldstate: SmtpState,
+    writer: &mut BufWriter<&TcpStream>,
+) -> Result<SmtpState, Error> {
+    writer.write_all("250 yeah, ok, buh bye.\r\n".as_bytes())?;
+    writer.flush()?;
+    Ok(SmtpState::Quit)
+}
+
+fn handle_cmd_rset(
+    oldstate: SmtpState,
+    writer: &mut BufWriter<&TcpStream>,
+) -> Result<SmtpState, Error> {
+    writer.write_all("250 reset, fine.\r\n".as_bytes())?;
+    writer.flush()?;
+    match oldstate {
+        SmtpState::Start => Ok(oldstate),
+        _ => Ok(SmtpState::Hello),
+    }
+}
+
+fn handle_cmd_vrfy(
+    oldstate: SmtpState,
+    writer: &mut BufWriter<&TcpStream>,
+) -> Result<SmtpState, Error> {
+    writer.write_all("250 yeah, sure, whatever.\r\n".as_bytes())?;
+    writer.flush()?;
+    Ok(oldstate)
+}
+
+fn handle_cmd_rcpt(
+    oldstate: SmtpState,
+    writer: &mut BufWriter<&TcpStream>,
+) -> Result<SmtpState, Error> {
+    match oldstate {
+        SmtpState::Mail | SmtpState::Rcpt => {
+            writer.write_all("250 ok, let's move on\r\n".as_bytes())?;
+            writer.flush()?;
+            Ok(SmtpState::Rcpt)
+        }
+        _ => {
+            writer.write_all(
+                "503 bad sequence of commands (did you say MAIL FROM?)\r\n".as_bytes(),
+            )?;
+            writer.flush()?;
+            Ok(SmtpState::Hello)
+        }
+    }
+}
+
+fn handle_cmd_helo(
+    _oldstate: SmtpState,
+    writer: &mut BufWriter<&TcpStream>,
+) -> Result<SmtpState, Error> {
+    writer.write_all("250 howdy!\r\n".as_bytes())?;
+    writer.flush()?;
+    Ok(SmtpState::Hello)
+}
+
+fn handle_cmd_ehlo(
+    _oldstate: SmtpState,
+    writer: &mut BufWriter<&TcpStream>,
+) -> Result<SmtpState, Error> {
+    writer.write_all("250-thought.net greets you.\r\n".as_bytes())?;
+    writer.write_all("250 HELP\r\n".as_bytes())?;
+    Ok(SmtpState::Hello)
+}
+
+fn handle_cmd_data(
+    oldstate: SmtpState,
+    writer: &mut BufWriter<&TcpStream>,
+) -> Result<SmtpState, Error> {
+    match oldstate {
+        SmtpState::Rcpt => {
+            writer.write_all("250 give me the message (. by itself to end)\r\n".as_bytes())?;
+            writer.flush()?;
+            Ok(SmtpState::Data)
+        }
+        _ => {
+            writer
+                .write_all("503 bad sequence of commands (did you say RCPT TO?)\r\n".as_bytes())?;
+            writer.flush()?;
+            Ok(oldstate)
+        }
+    }
+}
+
+fn handle_cmd_unknown(
+    oldstate: SmtpState,
+    writer: &mut BufWriter<&TcpStream>,
+) -> Result<SmtpState, Error> {
+    writer.write_all("502 command not implemented\r\n".as_bytes())?;
+    writer.flush()?;
+    Ok(oldstate)
+}
+
+fn handle_client(stream: &TcpStream) -> Result<(), Error> {
+    let mut writer = BufWriter::new(stream);
+    let reader = BufReader::new(stream);
 
     let mut state = SmtpState::Start;
 
@@ -61,6 +226,8 @@ fn handle_client(mut stream: &TcpStream) -> Result<(), Error> {
             }
             Ok(line) => match state {
                 SmtpState::Data => {
+                    // In data mode, just read a line and see if we're done reading the
+                    // message.
                     if line.as_bytes() == ".".as_bytes() {
                         writer.write_all("250 duly noted and ignored, thanks.\r\n".as_bytes())?;
                         writer.flush()?;
@@ -68,6 +235,7 @@ fn handle_client(mut stream: &TcpStream) -> Result<(), Error> {
                     }
                 }
                 _ => {
+                    // Otherwise, we're in command mode, parse up the verb and branch
                     let command = line.split_ascii_whitespace().next();
 
                     let cmd = match command {
@@ -76,114 +244,25 @@ fn handle_client(mut stream: &TcpStream) -> Result<(), Error> {
                     };
 
                     match cmd.as_str() {
-                        "HELP" => {
-                            writer.write_all("250 Go read RFC822\r\n".as_bytes())?;
-                            writer.flush()?;
-                        }
-                        "NOOP" => {
-                            writer.write_all("250 fine, waste my time.\r\n".as_bytes())?;
-                            writer.flush()?;
-                        }
-                        "QUIT" => {
-                            writer.write_all("221 yeah, whatever, buh bye.\r\n".as_bytes())?;
-                            writer.flush()?;
-                            return Ok(());
-                        }
-                        "VRFY" => {
-                            writer.write_all("250 yeah, sure, whatever.\r\n".as_bytes())?;
-                            writer.flush()?;
-                        }
-
-                        "RSET" => {
-                            stream.write_all("250 reset, fine.\r\n".as_bytes())?;
-                            state = match state {
-                                SmtpState::Start => SmtpState::Start,
-                                other => other,
-                            };
-                        }
-
-                        "HELO" => {
-                            state = SmtpState::Hello;
-                            writer.write_all("250 howdy!\r\n".as_bytes())?;
-                            writer.flush()?;
-                        }
-
-                        "EHLO" => {
-                            state = SmtpState::Hello;
-                            writer.write_all("250-thought.net greets you.\r\n".as_bytes())?;
-                            writer.write_all("250 HELP\r\n".as_bytes())?;
-                            writer.flush()?;
-                        }
-
-                        "MAIL" => {
-                            state = match state {
-                                SmtpState::Hello => {
-                                    writer.write_all("250 ok, let's move on\r\n".as_bytes())?;
-                                    writer.flush()?;
-                                    SmtpState::Mail
-                                }
-                                _ => {
-                                    writer.write_all(
-                                        "503 bad sequence of commands (didn't say hello)\r\n"
-                                            .as_bytes(),
-                                    )?;
-                                    writer.flush()?;
-                                    SmtpState::Hello
-                                }
-                            };
-                        }
-
-                        "RCPT" => {
-                            state = match state {
-                                SmtpState::Mail => {
-                                    writer.write_all("250 ok, let's move on\r\n".as_bytes())?;
-                                    writer.flush()?;
-                                    SmtpState::Rcpt
-                                }
-                                SmtpState::Rcpt => {
-                                    writer.write_all("250 ok, let's move on\r\n".as_bytes())?;
-                                    writer.flush()?;
-                                    SmtpState::Rcpt
-                                }
-                                _ => {
-                                    writer.write_all(
-                                        "503 bad sequence of commands (did you say MAIL FROM?)\r\n"
-                                            .as_bytes(),
-                                    )?;
-                                    writer.flush()?;
-                                    SmtpState::Hello
-                                }
-                            };
-                        }
-
-                        "DATA" => {
-                            state = match state {
-                                SmtpState::Rcpt => {
-                                    writer.write_all(
-                                        "250 give me the message (. by itself to end)\r\n"
-                                            .as_bytes(),
-                                    )?;
-                                    writer.flush()?;
-                                    SmtpState::Data
-                                }
-                                _ => {
-                                    writer.write_all(
-                                        "503 bad sequence of commands (did you say RCPT TO?)\r\n"
-                                            .as_bytes(),
-                                    )?;
-                                    writer.flush()?;
-                                    state
-                                }
-                            };
-                        }
-
-                        _ => {
-                            writer.write_all("502 command not implemented\r\n".as_bytes())?;
-                            writer.flush()?;
-                        }
+                        "DATA" => state = handle_cmd_data(state, &mut writer)?,
+                        "EHLO" => state = handle_cmd_ehlo(state, &mut writer)?,
+                        "HELO" => state = handle_cmd_helo(state, &mut writer)?,
+                        "HELP" => state = handle_cmd_help(state, &mut writer)?,
+                        "MAIL" => state = handle_cmd_mail(state, &mut writer)?,
+                        "NOOP" => state = handle_cmd_noop(state, &mut writer)?,
+                        "QUIT" => state = handle_cmd_quit(state, &mut writer)?,
+                        "RCPT" => state = handle_cmd_rcpt(state, &mut writer)?,
+                        "RSET" => state = handle_cmd_rset(state, &mut writer)?,
+                        "VRFY" => state = handle_cmd_vrfy(state, &mut writer)?,
+                        _ => state = handle_cmd_unknown(state, &mut writer)?,
                     }
                 }
             },
+        }
+
+        if let SmtpState::Quit = state {
+            // If state just changed to QUIT, we're done
+            break;
         }
     }
     Ok(())
