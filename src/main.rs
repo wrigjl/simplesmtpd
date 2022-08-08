@@ -84,13 +84,11 @@ fn handle_cmd_mail(
     match oldstate {
         SmtpState::Hello => {
             writer.write_all("250 ok, let's move on\r\n".as_bytes())?;
-            writer.flush()?;
             Ok(SmtpState::Mail)
         }
 
         _ => {
             writer.write_all("503 bad sequence of commands (didn't say hello)\r\n".as_bytes())?;
-            writer.flush()?;
             Ok(oldstate)
         }
     }
@@ -101,7 +99,6 @@ fn handle_cmd_help(
     writer: &mut BufWriter<&TcpStream>,
 ) -> Result<SmtpState, Error> {
     writer.write_all("250 Go read RFC5321.\r\n".as_bytes())?;
-    writer.flush()?;
     Ok(oldstate)
 }
 
@@ -110,7 +107,6 @@ fn handle_cmd_noop(
     writer: &mut BufWriter<&TcpStream>,
 ) -> Result<SmtpState, Error> {
     writer.write_all("250 fine, waste my time.\r\n".as_bytes())?;
-    writer.flush()?;
     Ok(oldstate)
 }
 
@@ -119,7 +115,6 @@ fn handle_cmd_quit(
     writer: &mut BufWriter<&TcpStream>,
 ) -> Result<SmtpState, Error> {
     writer.write_all("250 yeah, ok, buh bye.\r\n".as_bytes())?;
-    writer.flush()?;
     Ok(SmtpState::Quit)
 }
 
@@ -128,7 +123,6 @@ fn handle_cmd_rset(
     writer: &mut BufWriter<&TcpStream>,
 ) -> Result<SmtpState, Error> {
     writer.write_all("250 reset, fine.\r\n".as_bytes())?;
-    writer.flush()?;
     match oldstate {
         SmtpState::Start => Ok(oldstate),
         _ => Ok(SmtpState::Hello),
@@ -140,7 +134,6 @@ fn handle_cmd_vrfy(
     writer: &mut BufWriter<&TcpStream>,
 ) -> Result<SmtpState, Error> {
     writer.write_all("250 yeah, sure, whatever.\r\n".as_bytes())?;
-    writer.flush()?;
     Ok(oldstate)
 }
 
@@ -151,14 +144,12 @@ fn handle_cmd_rcpt(
     match oldstate {
         SmtpState::Mail | SmtpState::Rcpt => {
             writer.write_all("250 ok, let's move on\r\n".as_bytes())?;
-            writer.flush()?;
             Ok(SmtpState::Rcpt)
         }
         _ => {
             writer.write_all(
                 "503 bad sequence of commands (did you say MAIL FROM?)\r\n".as_bytes(),
             )?;
-            writer.flush()?;
             Ok(SmtpState::Hello)
         }
     }
@@ -173,12 +164,10 @@ fn handle_cmd_helo(
 
     if chunks.len() == 1 {
         writer.write_all("501 missing argument\r\n".as_bytes())?;
-        writer.flush()?;
         return Ok(oldstate);
     }
     if chunks.len() > 2 {
         writer.write_all("501 too many arguments\r\n".as_bytes())?;
-        writer.flush()?;
         return Ok(oldstate);
     }
 
@@ -190,12 +179,10 @@ fn handle_cmd_helo(
     match addr::parse_domain_name(chunks[1]) {
         Err(_) => {
             writer.write_all("501 invalid argument (not a valid domain name)\r\n".as_bytes())?;
-            writer.flush()?;
             Ok(oldstate)
         }
         Ok(_) => {
             writer.write_all("250 howdy!\r\n".as_bytes())?;
-            writer.flush()?;
             Ok(SmtpState::Hello)
         }
     }
@@ -216,12 +203,10 @@ fn handle_cmd_ehlo(
 
     if chunks.len() == 1 {
         writer.write_all("501 missing argument\r\n".as_bytes())?;
-        writer.flush()?;
         return Ok(oldstate);
     }
     if chunks.len() > 2 {
         writer.write_all("501 too many arguments\r\n".as_bytes())?;
-        writer.flush()?;
         return Ok(oldstate);
     }
 
@@ -235,7 +220,7 @@ fn handle_cmd_ehlo(
 
     if arg.is_empty() {
         writer.write_all("501 zero length argument\r\n".as_bytes())?;
-        writer.flush()?;
+        return Ok(oldstate);
     }
 
     if arg.starts_with('[') && arg.ends_with(']') {
@@ -254,7 +239,6 @@ fn handle_cmd_ehlo(
             let arg = arg.trim_start_matches("IPv6:");
             if std::net::Ipv6Addr::from_str(arg).is_err() {
                 writer.write_all("501 invalid ipv6 address\r\n".as_bytes())?;
-                writer.flush()?;
                 return Ok(oldstate);
             }
             return cmd_ehlo_response(writer);
@@ -270,7 +254,6 @@ fn handle_cmd_ehlo(
         //
         if addr::parse_domain_name(chunks[1]).is_err() {
             writer.write_all("501 invalid argument (not a valid domain name)\r\n".as_bytes())?;
-            writer.flush()?;
             return Ok(oldstate);
         }
     }
@@ -285,13 +268,11 @@ fn handle_cmd_data(
     match oldstate {
         SmtpState::Rcpt => {
             writer.write_all("354 give me the message (. by itself to end)\r\n".as_bytes())?;
-            writer.flush()?;
             Ok(SmtpState::Data)
         }
         _ => {
             writer
                 .write_all("503 bad sequence of commands (did you say RCPT TO?)\r\n".as_bytes())?;
-            writer.flush()?;
             Ok(oldstate)
         }
     }
@@ -302,7 +283,6 @@ fn handle_cmd_unknown(
     writer: &mut BufWriter<&TcpStream>,
 ) -> Result<SmtpState, Error> {
     writer.write_all("502 command not implemented\r\n".as_bytes())?;
-    writer.flush()?;
     Ok(oldstate)
 }
 
@@ -327,7 +307,6 @@ fn handle_client(stream: &TcpStream) -> Result<(), Error> {
                     // message.
                     if line.as_bytes() == ".".as_bytes() {
                         writer.write_all("250 duly noted and ignored, thanks.\r\n".as_bytes())?;
-                        writer.flush()?;
                         state = SmtpState::Hello;
                     }
                 }
@@ -361,6 +340,7 @@ fn handle_client(stream: &TcpStream) -> Result<(), Error> {
             // If state just changed to QUIT, we're done
             break;
         }
+        writer.flush()?;
     }
     Ok(())
 }
