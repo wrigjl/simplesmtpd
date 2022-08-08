@@ -164,12 +164,40 @@ fn handle_cmd_rcpt(
 }
 
 fn handle_cmd_helo(
-    _oldstate: SmtpState,
+    line: &String,
+    oldstate: SmtpState,
     writer: &mut BufWriter<&TcpStream>,
 ) -> Result<SmtpState, Error> {
-    writer.write_all("250 howdy!\r\n".as_bytes())?;
-    writer.flush()?;
-    Ok(SmtpState::Hello)
+    let chunks: Vec<_> = line.split(' ').collect();
+
+    if chunks.len() == 1 {
+        writer.write_all("501 missing argument\r\n".as_bytes())?;
+        writer.flush()?;
+        return Ok(oldstate);
+    }
+    if chunks.len() > 2 {
+        writer.write_all("501 too many arguments\r\n".as_bytes())?;
+        writer.flush()?;
+        return Ok(oldstate);
+    }
+
+    //
+    // This only verifies that it parses correctly as a domain name
+    // this-domain-shouldnt-exists.com would be fine whether or not
+    // the domain is actually registered or not.
+    //
+    match addr::parse_domain_name(chunks[1]) {
+        Err(_) => {
+            writer.write_all("501 invalid argument (not a valid domain name)\r\n".as_bytes())?;
+            writer.flush()?;
+            Ok(oldstate)
+        }
+        Ok(_) => {
+            writer.write_all("250 howdy!\r\n".as_bytes())?;
+            writer.flush()?;
+            Ok(SmtpState::Hello)
+        }
+    }
 }
 
 fn handle_cmd_ehlo(
@@ -187,7 +215,7 @@ fn handle_cmd_data(
 ) -> Result<SmtpState, Error> {
     match oldstate {
         SmtpState::Rcpt => {
-            writer.write_all("250 give me the message (. by itself to end)\r\n".as_bytes())?;
+            writer.write_all("354 give me the message (. by itself to end)\r\n".as_bytes())?;
             writer.flush()?;
             Ok(SmtpState::Data)
         }
@@ -246,7 +274,7 @@ fn handle_client(stream: &TcpStream) -> Result<(), Error> {
                     match cmd.as_str() {
                         "DATA" => state = handle_cmd_data(state, &mut writer)?,
                         "EHLO" => state = handle_cmd_ehlo(state, &mut writer)?,
-                        "HELO" => state = handle_cmd_helo(state, &mut writer)?,
+                        "HELO" => state = handle_cmd_helo(&line, state, &mut writer)?,
                         "HELP" => state = handle_cmd_help(state, &mut writer)?,
                         "MAIL" => state = handle_cmd_mail(state, &mut writer)?,
                         "NOOP" => state = handle_cmd_noop(state, &mut writer)?,

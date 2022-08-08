@@ -3,9 +3,35 @@
 version = 3
 
 [[package]]
+name = "addr"
+version = "0.15.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb028fa14f2f6843aa58b1a03c35bd9728dcb9c8292f758b85a8deb9811ad70f"
+dependencies = [
+ "psl",
+ "psl-types",
+]
+
+[[package]]
+name = "psl"
+version = "2.0.91"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06caccab829ed3e5487f2096f7237a59c0ea05c84da4cb1520b4c8dd4f05ad76"
+dependencies = [
+ "psl-types",
+]
+
+[[package]]
+name = "psl-types"
+version = "2.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8eda7c62d9ecaafdf8b62374c006de0adf61666ae96a96ba74a37134aa4e470"
+
+[[package]]
 name = "simplesmtpd"
 version = "0.1.0"
 dependencies = [
+ "addr",
  "spmc",
 ]
 
