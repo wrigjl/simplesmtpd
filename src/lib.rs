@@ -165,7 +165,7 @@ fn cmd_ehlo_response(writer: &mut dyn std::io::Write) -> Result<SmtpState, Error
     Ok(SmtpState::Hello)
 }
 
-fn handle_cmd_ehlo(
+pub fn handle_cmd_ehlo(
     line: &str,
     oldstate: SmtpState,
     writer: &mut dyn std::io::Write,
