@@ -6,5 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-spmc = "0.3.0"
-addr = "0.15.4"
+spmc = "0.3"
+addr = "0.15"
