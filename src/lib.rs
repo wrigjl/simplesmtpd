@@ -48,20 +48,28 @@ pub enum SmtpState {
 }
 
 fn handle_cmd_mail(
+    line: &str,
     oldstate: SmtpState,
     mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
-    match oldstate {
-        SmtpState::Hello => {
-            writer.write_all("250 ok, let's move on\r\n".as_bytes())?;
-            Ok(SmtpState::Mail)
-        }
-
-        _ => {
-            writer.write_all("503 bad sequence of commands (didn't say hello)\r\n".as_bytes())?;
-            Ok(oldstate)
-        }
+    if !matches!(oldstate, SmtpState::Hello) {
+        writer.write_all("503 bad sequence of commands (didn't say hello)\r\n".as_bytes())?;
+        return Ok(oldstate);
     }
+
+    if !line.to_ascii_uppercase().starts_with("MAIL FROM:") {
+        writer.write_all("501 invalid syntax for MAIL command.\r\n".as_bytes())?;
+        return Ok(oldstate);
+    }
+
+    let arg = &line["MAIL FROM:".len()..];
+    if arg.is_empty() {
+        writer.write_all("501 missing return-path.\r\n".as_bytes())?;
+        return Ok(oldstate);
+    }
+
+    writer.write_all("250 ok, let's move on\r\n".as_bytes())?;
+    Ok(SmtpState::Mail)
 }
 
 fn handle_cmd_help(
@@ -100,29 +108,48 @@ fn handle_cmd_rset(
 }
 
 fn handle_cmd_vrfy(
+    line: &str,
     oldstate: SmtpState,
     mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
-    writer.write_all("250 yeah, sure, whatever.\r\n".as_bytes())?;
-    Ok(oldstate)
+    if !line.to_ascii_uppercase().starts_with("VRFY ") {
+        writer.write_all("501 invalid syntax for VRFY command.\r\n".as_bytes())?;
+        return Ok(oldstate);
+    }
+
+    let arg = &line["VRFY ".len()..];
+    if arg.is_empty() {
+        writer.write_all("501 missing address to verify.\r\n".as_bytes())?;
+        return Ok(oldstate);
+    }
+
+    writer.write_all("502 command not implemented\r\n".as_bytes())?;
+    Ok(SmtpState::Mail)
 }
 
 fn handle_cmd_rcpt(
+    line: &str,
     oldstate: SmtpState,
     mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
-    match oldstate {
-        SmtpState::Mail | SmtpState::Rcpt => {
-            writer.write_all("250 ok, let's move on\r\n".as_bytes())?;
-            Ok(SmtpState::Rcpt)
-        }
-        _ => {
-            writer.write_all(
-                "503 bad sequence of commands (did you say MAIL FROM?)\r\n".as_bytes(),
-            )?;
-            Ok(SmtpState::Hello)
-        }
+    if !matches!(oldstate, SmtpState::Rcpt) && !matches!(oldstate, SmtpState::Mail) {
+        writer.write_all("503 bad sequence of commands (didn't say MAIL FROM)\r\n".as_bytes())?;
+        return Ok(oldstate);
     }
+
+    if !line.to_ascii_uppercase().starts_with("RCPT TO:") {
+        writer.write_all("501 invalid syntax for RCPT command.\r\n".as_bytes())?;
+        return Ok(oldstate);
+    }
+
+    let arg = &line["RCPT TO:".len()..];
+    if arg.is_empty() {
+        writer.write_all("501 missing destination-path.\r\n".as_bytes())?;
+        return Ok(oldstate);
+    }
+
+    writer.write_all("250 ok, let's move on\r\n".as_bytes())?;
+    Ok(SmtpState::Rcpt)
 }
 
 pub fn handle_cmd_helo(
@@ -294,12 +321,12 @@ pub fn handle_client(fin: impl Read, fout: impl Write) -> Result<(), Error> {
                         "EHLO" => state = handle_cmd_ehlo(&line, state, &mut writer)?,
                         "HELO" => state = handle_cmd_helo(&line, state, &mut writer)?,
                         "HELP" => state = handle_cmd_help(state, &mut writer)?,
-                        "MAIL" => state = handle_cmd_mail(state, &mut writer)?,
+                        "MAIL" => state = handle_cmd_mail(&line, state, &mut writer)?,
                         "NOOP" => state = handle_cmd_noop(state, &mut writer)?,
                         "QUIT" => state = handle_cmd_quit(state, &mut writer)?,
-                        "RCPT" => state = handle_cmd_rcpt(state, &mut writer)?,
+                        "RCPT" => state = handle_cmd_rcpt(&line, state, &mut writer)?,
                         "RSET" => state = handle_cmd_rset(state, &mut writer)?,
-                        "VRFY" => state = handle_cmd_vrfy(state, &mut writer)?,
+                        "VRFY" => state = handle_cmd_vrfy(&line, state, &mut writer)?,
                         _ => state = handle_cmd_unknown(state, &mut writer)?,
                     }
                 }
