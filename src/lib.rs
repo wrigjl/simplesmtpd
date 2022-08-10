@@ -34,8 +34,7 @@
 //
 
 use std::{
-    io::{BufRead, BufReader, BufWriter, Error, Write},
-    net::TcpStream,
+    io::{BufRead, BufReader, BufWriter, Error, Write, Read},
     str::FromStr,
 };
 
@@ -50,7 +49,7 @@ pub enum SmtpState {
 
 fn handle_cmd_mail(
     oldstate: SmtpState,
-    writer: &mut dyn std::io::Write,
+    mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
     match oldstate {
         SmtpState::Hello => {
@@ -67,7 +66,7 @@ fn handle_cmd_mail(
 
 fn handle_cmd_help(
     oldstate: SmtpState,
-    writer: &mut dyn std::io::Write,
+    mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
     writer.write_all("250 Go read RFC5321.\r\n".as_bytes())?;
     Ok(oldstate)
@@ -75,7 +74,7 @@ fn handle_cmd_help(
 
 fn handle_cmd_noop(
     oldstate: SmtpState,
-    writer: &mut dyn std::io::Write,
+    mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
     writer.write_all("250 fine, waste my time.\r\n".as_bytes())?;
     Ok(oldstate)
@@ -83,7 +82,7 @@ fn handle_cmd_noop(
 
 fn handle_cmd_quit(
     _oldstate: SmtpState,
-    writer: &mut dyn std::io::Write,
+    mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
     writer.write_all("250 yeah, ok, buh bye.\r\n".as_bytes())?;
     Ok(SmtpState::Quit)
@@ -91,7 +90,7 @@ fn handle_cmd_quit(
 
 fn handle_cmd_rset(
     oldstate: SmtpState,
-    writer: &mut dyn std::io::Write,
+    mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
     writer.write_all("250 reset, fine.\r\n".as_bytes())?;
     match oldstate {
@@ -102,7 +101,7 @@ fn handle_cmd_rset(
 
 fn handle_cmd_vrfy(
     oldstate: SmtpState,
-    writer: &mut dyn std::io::Write,
+    mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
     writer.write_all("250 yeah, sure, whatever.\r\n".as_bytes())?;
     Ok(oldstate)
@@ -110,7 +109,7 @@ fn handle_cmd_vrfy(
 
 fn handle_cmd_rcpt(
     oldstate: SmtpState,
-    writer: &mut dyn std::io::Write,
+    mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
     match oldstate {
         SmtpState::Mail | SmtpState::Rcpt => {
@@ -129,7 +128,7 @@ fn handle_cmd_rcpt(
 pub fn handle_cmd_helo(
     line: &str,
     oldstate: SmtpState,
-    writer: &mut dyn std::io::Write,
+    mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
     let chunks: Vec<_> = line.split(' ').collect();
 
@@ -159,7 +158,7 @@ pub fn handle_cmd_helo(
     }
 }
 
-fn cmd_ehlo_response(writer: &mut dyn std::io::Write) -> Result<SmtpState, Error> {
+fn cmd_ehlo_response(mut writer: impl Write) -> Result<SmtpState, Error> {
     writer.write_all("250-simplesmtp.thought.net greets you.\r\n".as_bytes())?;
     writer.write_all("250 HELP\r\n".as_bytes())?;
     Ok(SmtpState::Hello)
@@ -168,7 +167,7 @@ fn cmd_ehlo_response(writer: &mut dyn std::io::Write) -> Result<SmtpState, Error
 pub fn handle_cmd_ehlo(
     line: &str,
     oldstate: SmtpState,
-    writer: &mut dyn std::io::Write,
+    mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
     let chunks: Vec<_> = line.split(' ').collect();
 
@@ -234,7 +233,7 @@ pub fn handle_cmd_ehlo(
 
 fn handle_cmd_data(
     oldstate: SmtpState,
-    writer: &mut dyn std::io::Write,
+    mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
     match oldstate {
         SmtpState::Rcpt => {
@@ -251,15 +250,15 @@ fn handle_cmd_data(
 
 fn handle_cmd_unknown(
     oldstate: SmtpState,
-    writer: &mut dyn std::io::Write,
+    mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
     writer.write_all("502 command not implemented\r\n".as_bytes())?;
     Ok(oldstate)
 }
 
-pub fn handle_client(stream: &TcpStream) -> Result<(), Error> {
-    let mut writer = BufWriter::new(stream);
-    let reader = BufReader::new(stream);
+pub fn handle_client(fin: impl Read, fout: impl Write) -> Result<(), Error> {
+    let mut writer = BufWriter::new(fout);
+    let reader = BufReader::new(fin);
 
     let mut state = SmtpState::Start;
 
