@@ -1,0 +1,18 @@
+[Unit]
+Description=SimpleSMTPD server
+Documentation=man:simplesmtpd(8)
+Requires=simplesmtpd.socket
+After=network.target auditd.service
+
+[Service]
+ExecStart=-/home/ubuntu/simplesmtpd/target/debug/simplesmtpd
+ExecReload=/bin/kill $MAINPID
+KillMode=process
+Restart=on-failure
+StandardError=journal
+StandardInput=socket
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
+Also=simplesmtpd.socket

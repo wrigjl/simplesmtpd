@@ -1,0 +1,11 @@
+[Unit]
+Description=SimpleSMTPD service
+Before=simplesmtpd.service
+Conflicts=simplesmtpd.service
+
+[Socket]
+ListenStream=8025
+Accept=yes
+
+[Install]
+WantedBy=sockets.target
