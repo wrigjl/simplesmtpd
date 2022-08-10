@@ -33,35 +33,9 @@
 // Also, it is an excuse for me to play with rust development.
 //
 
-use std::{
-    net::{TcpListener, TcpStream},
-    thread,
-};
+use std::io;
 
-fn main() -> std::io::Result<()> {
-    let (mut tx, rx) = spmc::channel::<TcpStream>();
-    let mut handles = Vec::new();
-
-    let listener = TcpListener::bind("0.0.0.0:8025")?;
-
-    for _ in 0..20 {
-        let rx = rx.clone();
-        handles.push(thread::spawn(move || {
-            let msg = rx.recv().unwrap();
-            simplesmtpd::handle_client(&msg).unwrap();
-        }));
-    }
-
-    for streamres in listener.incoming() {
-        match streamres {
-            Ok(stream) => tx.send(stream).unwrap(),
-            Err(_) => panic!("bad listen"),
-        }
-    }
-
-    for handle in handles {
-        handle.join().unwrap();
-    }
-
+fn main() -> io::Result<()> {
+    simplesmtpd::handle_client(io::stdin(), io::stdout())?;
     Ok(())
 }
