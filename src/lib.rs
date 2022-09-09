@@ -92,7 +92,7 @@ fn handle_cmd_quit(
     _oldstate: SmtpState,
     mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
-    writer.write_all("250 yeah, ok, buh bye.\r\n".as_bytes())?;
+    writer.write_all("221 yeah, ok, buh bye.\r\n".as_bytes())?;
     Ok(SmtpState::Quit)
 }
 
