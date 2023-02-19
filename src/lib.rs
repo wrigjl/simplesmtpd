@@ -123,7 +123,27 @@ fn handle_cmd_vrfy(
         return Ok(oldstate);
     }
 
-    writer.write_all("502 command not implemented\r\n".as_bytes())?;
+    writer.write_all("252 Cannot VRFY user, but will accept message and attempt delivery.\r\n".as_bytes())?;
+    Ok(SmtpState::Mail)
+}
+
+fn handle_cmd_expn(
+    line: &str,
+    oldstate: SmtpState,
+    mut writer: impl Write,
+) -> Result<SmtpState, Error> {
+    if !line.to_ascii_uppercase().starts_with("EXPN ") {
+        writer.write_all("501 invalid syntax for EXPN command.\r\n".as_bytes())?;
+        return Ok(oldstate);
+    }
+
+    let arg = &line["VRFY ".len()..];
+    if arg.is_empty() {
+        writer.write_all("501 missing address to explain.\r\n".as_bytes())?;
+        return Ok(oldstate);
+    }
+
+    writer.write_all("252 Unable to verify members of mailing list.\r\n".as_bytes())?;
     Ok(SmtpState::Mail)
 }
 
@@ -319,6 +339,7 @@ pub fn handle_client(fin: impl Read, fout: impl Write) -> Result<(), Error> {
                     match cmd.as_str() {
                         "DATA" => state = handle_cmd_data(state, &mut writer)?,
                         "EHLO" => state = handle_cmd_ehlo(&line, state, &mut writer)?,
+                        "EXPN" => state = handle_cmd_expn(&line, state, &mut writer)?,
                         "HELO" => state = handle_cmd_helo(&line, state, &mut writer)?,
                         "HELP" => state = handle_cmd_help(state, &mut writer)?,
                         "MAIL" => state = handle_cmd_mail(&line, state, &mut writer)?,
