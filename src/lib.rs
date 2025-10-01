@@ -299,7 +299,7 @@ fn handle_cmd_unknown(
     oldstate: SmtpState,
     mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
-    writer.write_all("502 command not implemented\r\n".as_bytes())?;
+    writer.write_all("500 command not recognized\r\n".as_bytes())?;
     Ok(oldstate)
 }
 
