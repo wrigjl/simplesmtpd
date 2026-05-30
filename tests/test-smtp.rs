@@ -26,7 +26,13 @@ fn session_codes(output: &str) -> Vec<u16> {
 #[test]
 fn helo_domain() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_helo("HELO domain.com", SmtpState::Start, &mut buf, "test.example.com").unwrap();
+    let state = simplesmtpd::handle_cmd_helo(
+        "HELO domain.com",
+        SmtpState::Start,
+        &mut buf,
+        "test.example.com",
+    )
+    .unwrap();
     assert!(matches!(state, SmtpState::Hello));
     assert_eq!(code(&buf), 250);
 }
@@ -34,7 +40,9 @@ fn helo_domain() {
 #[test]
 fn helo_missing_arg() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_helo("HELO", SmtpState::Start, &mut buf, "test.example.com").unwrap();
+    let state =
+        simplesmtpd::handle_cmd_helo("HELO", SmtpState::Start, &mut buf, "test.example.com")
+            .unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 501);
 }
@@ -42,7 +50,13 @@ fn helo_missing_arg() {
 #[test]
 fn helo_too_many_args() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_helo("HELO a.com b.com", SmtpState::Start, &mut buf, "test.example.com").unwrap();
+    let state = simplesmtpd::handle_cmd_helo(
+        "HELO a.com b.com",
+        SmtpState::Start,
+        &mut buf,
+        "test.example.com",
+    )
+    .unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 501);
 }
@@ -50,7 +64,13 @@ fn helo_too_many_args() {
 #[test]
 fn helo_invalid_domain() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_helo("HELO not_a_domain!", SmtpState::Start, &mut buf, "test.example.com").unwrap();
+    let state = simplesmtpd::handle_cmd_helo(
+        "HELO not_a_domain!",
+        SmtpState::Start,
+        &mut buf,
+        "test.example.com",
+    )
+    .unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 501);
 }
@@ -58,7 +78,13 @@ fn helo_invalid_domain() {
 #[test]
 fn helo_mid_session_resets_to_hello() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_helo("HELO domain.com", SmtpState::Mail, &mut buf, "test.example.com").unwrap();
+    let state = simplesmtpd::handle_cmd_helo(
+        "HELO domain.com",
+        SmtpState::Mail,
+        &mut buf,
+        "test.example.com",
+    )
+    .unwrap();
     assert!(matches!(state, SmtpState::Hello));
     assert_eq!(code(&buf), 250);
 }
@@ -68,28 +94,48 @@ fn helo_mid_session_resets_to_hello() {
 #[test]
 fn ehlo_domain() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO domain.com", SmtpState::Start, &mut buf, "test.example.com").unwrap();
+    let state = simplesmtpd::handle_cmd_ehlo(
+        "EHLO domain.com",
+        SmtpState::Start,
+        &mut buf,
+        "test.example.com",
+    )
+    .unwrap();
     assert!(matches!(state, SmtpState::Hello));
 }
 
 #[test]
 fn ehlo_ip4() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO [8.8.8.8]", SmtpState::Start, &mut buf, "test.example.com").unwrap();
+    let state = simplesmtpd::handle_cmd_ehlo(
+        "EHLO [8.8.8.8]",
+        SmtpState::Start,
+        &mut buf,
+        "test.example.com",
+    )
+    .unwrap();
     assert!(matches!(state, SmtpState::Hello));
 }
 
 #[test]
 fn ehlo_ip6() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO [IPv6:ff01::1]", SmtpState::Start, &mut buf, "test.example.com").unwrap();
+    let state = simplesmtpd::handle_cmd_ehlo(
+        "EHLO [IPv6:ff01::1]",
+        SmtpState::Start,
+        &mut buf,
+        "test.example.com",
+    )
+    .unwrap();
     assert!(matches!(state, SmtpState::Hello));
 }
 
 #[test]
 fn ehlo_missing_arg() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO", SmtpState::Start, &mut buf, "test.example.com").unwrap();
+    let state =
+        simplesmtpd::handle_cmd_ehlo("EHLO", SmtpState::Start, &mut buf, "test.example.com")
+            .unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 501);
 }
@@ -97,7 +143,13 @@ fn ehlo_missing_arg() {
 #[test]
 fn ehlo_too_many_args() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO a.com b.com", SmtpState::Start, &mut buf, "test.example.com").unwrap();
+    let state = simplesmtpd::handle_cmd_ehlo(
+        "EHLO a.com b.com",
+        SmtpState::Start,
+        &mut buf,
+        "test.example.com",
+    )
+    .unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 501);
 }
@@ -105,7 +157,13 @@ fn ehlo_too_many_args() {
 #[test]
 fn ehlo_invalid_domain() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO not_a_domain!", SmtpState::Start, &mut buf, "test.example.com").unwrap();
+    let state = simplesmtpd::handle_cmd_ehlo(
+        "EHLO not_a_domain!",
+        SmtpState::Start,
+        &mut buf,
+        "test.example.com",
+    )
+    .unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 501);
 }
@@ -113,7 +171,13 @@ fn ehlo_invalid_domain() {
 #[test]
 fn ehlo_invalid_ipv6() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO [IPv6:not::valid::addr]", SmtpState::Start, &mut buf, "test.example.com").unwrap();
+    let state = simplesmtpd::handle_cmd_ehlo(
+        "EHLO [IPv6:not::valid::addr]",
+        SmtpState::Start,
+        &mut buf,
+        "test.example.com",
+    )
+    .unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 501);
 }
@@ -121,14 +185,26 @@ fn ehlo_invalid_ipv6() {
 #[test]
 fn ehlo_mid_session_resets_to_hello() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO domain.com", SmtpState::Mail, &mut buf, "test.example.com").unwrap();
+    let state = simplesmtpd::handle_cmd_ehlo(
+        "EHLO domain.com",
+        SmtpState::Mail,
+        &mut buf,
+        "test.example.com",
+    )
+    .unwrap();
     assert!(matches!(state, SmtpState::Hello));
 }
 
 #[test]
 fn ehlo_response_advertises_expn() {
     let mut buf = Vec::new();
-    simplesmtpd::handle_cmd_ehlo("EHLO domain.com", SmtpState::Start, &mut buf, "test.example.com").unwrap();
+    simplesmtpd::handle_cmd_ehlo(
+        "EHLO domain.com",
+        SmtpState::Start,
+        &mut buf,
+        "test.example.com",
+    )
+    .unwrap();
     let output = String::from_utf8(buf).unwrap();
     assert!(output.contains("EXPN"), "EHLO response must advertise EXPN");
 }
@@ -138,7 +214,9 @@ fn ehlo_response_advertises_expn() {
 #[test]
 fn mail_success() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_mail("MAIL FROM:<sender@example.com>", SmtpState::Hello, &mut buf).unwrap();
+    let state =
+        simplesmtpd::handle_cmd_mail("MAIL FROM:<sender@example.com>", SmtpState::Hello, &mut buf)
+            .unwrap();
     assert!(matches!(state, SmtpState::Mail));
     assert_eq!(code(&buf), 250);
 }
@@ -154,7 +232,9 @@ fn mail_null_reverse_path() {
 #[test]
 fn mail_case_insensitive() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_mail("mail from:<sender@example.com>", SmtpState::Hello, &mut buf).unwrap();
+    let state =
+        simplesmtpd::handle_cmd_mail("mail from:<sender@example.com>", SmtpState::Hello, &mut buf)
+            .unwrap();
     assert!(matches!(state, SmtpState::Mail));
     assert_eq!(code(&buf), 250);
 }
@@ -162,7 +242,9 @@ fn mail_case_insensitive() {
 #[test]
 fn mail_requires_hello_first() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_mail("MAIL FROM:<sender@example.com>", SmtpState::Start, &mut buf).unwrap();
+    let state =
+        simplesmtpd::handle_cmd_mail("MAIL FROM:<sender@example.com>", SmtpState::Start, &mut buf)
+            .unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 503);
 }
@@ -170,7 +252,9 @@ fn mail_requires_hello_first() {
 #[test]
 fn mail_rejected_when_transaction_in_progress() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_mail("MAIL FROM:<sender@example.com>", SmtpState::Mail, &mut buf).unwrap();
+    let state =
+        simplesmtpd::handle_cmd_mail("MAIL FROM:<sender@example.com>", SmtpState::Mail, &mut buf)
+            .unwrap();
     assert!(matches!(state, SmtpState::Mail));
     assert_eq!(code(&buf), 503);
 }
@@ -178,7 +262,9 @@ fn mail_rejected_when_transaction_in_progress() {
 #[test]
 fn mail_missing_angle_brackets() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_mail("MAIL FROM:sender@example.com", SmtpState::Hello, &mut buf).unwrap();
+    let state =
+        simplesmtpd::handle_cmd_mail("MAIL FROM:sender@example.com", SmtpState::Hello, &mut buf)
+            .unwrap();
     assert!(matches!(state, SmtpState::Hello));
     assert_eq!(code(&buf), 501);
 }
@@ -194,7 +280,9 @@ fn mail_empty_arg() {
 #[test]
 fn mail_wrong_syntax() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_mail("MAIL TO:<sender@example.com>", SmtpState::Hello, &mut buf).unwrap();
+    let state =
+        simplesmtpd::handle_cmd_mail("MAIL TO:<sender@example.com>", SmtpState::Hello, &mut buf)
+            .unwrap();
     assert!(matches!(state, SmtpState::Hello));
     assert_eq!(code(&buf), 501);
 }
@@ -204,7 +292,9 @@ fn mail_wrong_syntax() {
 #[test]
 fn rcpt_success() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_rcpt("RCPT TO:<recipient@example.com>", SmtpState::Mail, &mut buf).unwrap();
+    let state =
+        simplesmtpd::handle_cmd_rcpt("RCPT TO:<recipient@example.com>", SmtpState::Mail, &mut buf)
+            .unwrap();
     assert!(matches!(state, SmtpState::Rcpt));
     assert_eq!(code(&buf), 250);
 }
@@ -212,7 +302,9 @@ fn rcpt_success() {
 #[test]
 fn rcpt_multiple_recipients() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_rcpt("RCPT TO:<second@example.com>", SmtpState::Rcpt, &mut buf).unwrap();
+    let state =
+        simplesmtpd::handle_cmd_rcpt("RCPT TO:<second@example.com>", SmtpState::Rcpt, &mut buf)
+            .unwrap();
     assert!(matches!(state, SmtpState::Rcpt));
     assert_eq!(code(&buf), 250);
 }
@@ -220,7 +312,9 @@ fn rcpt_multiple_recipients() {
 #[test]
 fn rcpt_case_insensitive() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_rcpt("rcpt to:<recipient@example.com>", SmtpState::Mail, &mut buf).unwrap();
+    let state =
+        simplesmtpd::handle_cmd_rcpt("rcpt to:<recipient@example.com>", SmtpState::Mail, &mut buf)
+            .unwrap();
     assert!(matches!(state, SmtpState::Rcpt));
     assert_eq!(code(&buf), 250);
 }
@@ -228,7 +322,12 @@ fn rcpt_case_insensitive() {
 #[test]
 fn rcpt_requires_mail_first() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_rcpt("RCPT TO:<recipient@example.com>", SmtpState::Hello, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_rcpt(
+        "RCPT TO:<recipient@example.com>",
+        SmtpState::Hello,
+        &mut buf,
+    )
+    .unwrap();
     assert!(matches!(state, SmtpState::Hello));
     assert_eq!(code(&buf), 503);
 }
@@ -236,7 +335,9 @@ fn rcpt_requires_mail_first() {
 #[test]
 fn rcpt_missing_angle_brackets() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_rcpt("RCPT TO:recipient@example.com", SmtpState::Mail, &mut buf).unwrap();
+    let state =
+        simplesmtpd::handle_cmd_rcpt("RCPT TO:recipient@example.com", SmtpState::Mail, &mut buf)
+            .unwrap();
     assert!(matches!(state, SmtpState::Mail));
     assert_eq!(code(&buf), 501);
 }
@@ -252,7 +353,12 @@ fn rcpt_empty_arg() {
 #[test]
 fn rcpt_wrong_syntax() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_rcpt("RCPT FROM:<recipient@example.com>", SmtpState::Mail, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_rcpt(
+        "RCPT FROM:<recipient@example.com>",
+        SmtpState::Mail,
+        &mut buf,
+    )
+    .unwrap();
     assert!(matches!(state, SmtpState::Mail));
     assert_eq!(code(&buf), 501);
 }
@@ -338,7 +444,8 @@ fn rset_with_arguments_rejected() {
 #[test]
 fn vrfy_does_not_change_state() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_vrfy("VRFY user@example.com", SmtpState::Hello, &mut buf).unwrap();
+    let state =
+        simplesmtpd::handle_cmd_vrfy("VRFY user@example.com", SmtpState::Hello, &mut buf).unwrap();
     assert!(matches!(state, SmtpState::Hello));
     assert_eq!(code(&buf), 252);
 }
@@ -347,7 +454,8 @@ fn vrfy_does_not_change_state() {
 fn vrfy_does_not_corrupt_mail_state() {
     // Regression: VRFY used to transition state to Mail regardless of prior state.
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_vrfy("VRFY user@example.com", SmtpState::Mail, &mut buf).unwrap();
+    let state =
+        simplesmtpd::handle_cmd_vrfy("VRFY user@example.com", SmtpState::Mail, &mut buf).unwrap();
     assert!(matches!(state, SmtpState::Mail));
     assert_eq!(code(&buf), 252);
 }
@@ -355,7 +463,8 @@ fn vrfy_does_not_corrupt_mail_state() {
 #[test]
 fn vrfy_usable_before_ehlo() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_vrfy("VRFY user@example.com", SmtpState::Start, &mut buf).unwrap();
+    let state =
+        simplesmtpd::handle_cmd_vrfy("VRFY user@example.com", SmtpState::Start, &mut buf).unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 252);
 }
@@ -444,7 +553,9 @@ fn help_usable_before_ehlo() {
 #[test]
 fn quit_success() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_quit("QUIT", SmtpState::Hello, &mut buf, "test.example.com").unwrap();
+    let state =
+        simplesmtpd::handle_cmd_quit("QUIT", SmtpState::Hello, &mut buf, "test.example.com")
+            .unwrap();
     assert!(matches!(state, SmtpState::Quit));
     assert_eq!(code(&buf), 221);
 }
@@ -461,7 +572,9 @@ fn quit_221_includes_domain() {
 #[test]
 fn quit_with_arguments_rejected() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_quit("QUIT now", SmtpState::Hello, &mut buf, "test.example.com").unwrap();
+    let state =
+        simplesmtpd::handle_cmd_quit("QUIT now", SmtpState::Hello, &mut buf, "test.example.com")
+            .unwrap();
     assert!(matches!(state, SmtpState::Hello));
     assert_eq!(code(&buf), 501);
 }
@@ -507,7 +620,10 @@ fn session_multiple_transactions() {
                  QUIT\r\n";
     let codes = session_codes(&session(input));
     // 220; 250×3 EHLO; 250 MAIL; 250 RCPT; 354; 250; 250 MAIL; 250 RCPT; 354; 250; 221
-    assert_eq!(codes, vec![220, 250, 250, 250, 250, 250, 354, 250, 250, 250, 354, 250, 221]);
+    assert_eq!(
+        codes,
+        vec![220, 250, 250, 250, 250, 250, 354, 250, 250, 250, 354, 250, 221]
+    );
 }
 
 #[test]
@@ -524,7 +640,10 @@ fn session_ehlo_mid_transaction_resets() {
                  QUIT\r\n";
     let codes = session_codes(&session(input));
     // 220; 250×3 EHLO; 250 MAIL; 250×3 EHLO reset; 250 MAIL; 250 RCPT; 354; 250; 221
-    assert_eq!(codes, vec![220, 250, 250, 250, 250, 250, 250, 250, 250, 250, 354, 250, 221]);
+    assert_eq!(
+        codes,
+        vec![220, 250, 250, 250, 250, 250, 250, 250, 250, 250, 354, 250, 221]
+    );
 }
 
 #[test]
@@ -549,5 +668,8 @@ fn session_rset_aborts_transaction() {
                  QUIT\r\n";
     let codes = session_codes(&session(input));
     // 220; 250×3 EHLO; 250 MAIL; 250 RCPT; 250 RSET; 250 MAIL; 250 RCPT; 354; 250; 221
-    assert_eq!(codes, vec![220, 250, 250, 250, 250, 250, 250, 250, 250, 354, 250, 221]);
+    assert_eq!(
+        codes,
+        vec![220, 250, 250, 250, 250, 250, 250, 250, 250, 354, 250, 221]
+    );
 }

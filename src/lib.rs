@@ -38,7 +38,6 @@ use std::{
     str::FromStr,
 };
 
-
 pub enum SmtpState {
     Start,
     Hello,
@@ -54,18 +53,25 @@ pub fn handle_cmd_mail(
     mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
     if !matches!(oldstate, SmtpState::Hello) {
-        writer.write_all("503 bad sequence of commands -- EHLO first, this is not optional\r\n".as_bytes())?;
+        writer.write_all(
+            "503 bad sequence of commands -- EHLO first, this is not optional\r\n".as_bytes(),
+        )?;
         return Ok(oldstate);
     }
 
     if !line.to_ascii_uppercase().starts_with("MAIL FROM:") {
-        writer.write_all("501 try MAIL FROM:<address>, with the angle brackets and everything\r\n".as_bytes())?;
+        writer.write_all(
+            "501 try MAIL FROM:<address>, with the angle brackets and everything\r\n".as_bytes(),
+        )?;
         return Ok(oldstate);
     }
 
     let arg = &line["MAIL FROM:".len()..];
     if arg.is_empty() || !arg.starts_with('<') || !arg.ends_with('>') {
-        writer.write_all("501 angle brackets are not optional: MAIL FROM:<address> or MAIL FROM:<>\r\n".as_bytes())?;
+        writer.write_all(
+            "501 angle brackets are not optional: MAIL FROM:<address> or MAIL FROM:<>\r\n"
+                .as_bytes(),
+        )?;
         return Ok(oldstate);
     }
 
@@ -73,18 +79,12 @@ pub fn handle_cmd_mail(
     Ok(SmtpState::Mail)
 }
 
-pub fn handle_cmd_help(
-    oldstate: SmtpState,
-    mut writer: impl Write,
-) -> Result<SmtpState, Error> {
+pub fn handle_cmd_help(oldstate: SmtpState, mut writer: impl Write) -> Result<SmtpState, Error> {
     writer.write_all("214 Go read RFC5321.\r\n".as_bytes())?;
     Ok(oldstate)
 }
 
-pub fn handle_cmd_noop(
-    oldstate: SmtpState,
-    mut writer: impl Write,
-) -> Result<SmtpState, Error> {
+pub fn handle_cmd_noop(oldstate: SmtpState, mut writer: impl Write) -> Result<SmtpState, Error> {
     writer.write_all("250 congratulations on accomplishing absolutely nothing\r\n".as_bytes())?;
     Ok(oldstate)
 }
@@ -96,10 +96,17 @@ pub fn handle_cmd_quit(
     domain: &str,
 ) -> Result<SmtpState, Error> {
     if line.split_ascii_whitespace().count() > 1 {
-        writer.write_all("501 QUIT takes no arguments -- it's literally one word\r\n".as_bytes())?;
+        writer
+            .write_all("501 QUIT takes no arguments -- it's literally one word\r\n".as_bytes())?;
         return Ok(oldstate);
     }
-    writer.write_all(format!("221 {} fine, goodbye, don't let the door hit you\r\n", domain).as_bytes())?;
+    writer.write_all(
+        format!(
+            "221 {} fine, goodbye, don't let the door hit you\r\n",
+            domain
+        )
+        .as_bytes(),
+    )?;
     Ok(SmtpState::Quit)
 }
 
@@ -125,17 +132,23 @@ pub fn handle_cmd_vrfy(
     mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
     if !line.to_ascii_uppercase().starts_with("VRFY ") {
-        writer.write_all("501 VRFY requires an argument -- who exactly are you looking for?\r\n".as_bytes())?;
+        writer.write_all(
+            "501 VRFY requires an argument -- who exactly are you looking for?\r\n".as_bytes(),
+        )?;
         return Ok(oldstate);
     }
 
     let arg = &line["VRFY ".len()..];
     if arg.is_empty() {
-        writer.write_all("501 VRFY requires an argument -- who exactly are you looking for?\r\n".as_bytes())?;
+        writer.write_all(
+            "501 VRFY requires an argument -- who exactly are you looking for?\r\n".as_bytes(),
+        )?;
         return Ok(oldstate);
     }
 
-    writer.write_all("252 couldn't tell you, wouldn't tell you, but sure, send mail\r\n".as_bytes())?;
+    writer.write_all(
+        "252 couldn't tell you, wouldn't tell you, but sure, send mail\r\n".as_bytes(),
+    )?;
     Ok(oldstate)
 }
 
@@ -145,13 +158,15 @@ pub fn handle_cmd_expn(
     mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
     if !line.to_ascii_uppercase().starts_with("EXPN ") {
-        writer.write_all("501 EXPN requires a list name -- I'm not a mind reader\r\n".as_bytes())?;
+        writer
+            .write_all("501 EXPN requires a list name -- I'm not a mind reader\r\n".as_bytes())?;
         return Ok(oldstate);
     }
 
     let arg = &line["EXPN ".len()..];
     if arg.is_empty() {
-        writer.write_all("501 EXPN requires a list name -- I'm not a mind reader\r\n".as_bytes())?;
+        writer
+            .write_all("501 EXPN requires a list name -- I'm not a mind reader\r\n".as_bytes())?;
         return Ok(oldstate);
     }
 
@@ -165,18 +180,24 @@ pub fn handle_cmd_rcpt(
     mut writer: impl Write,
 ) -> Result<SmtpState, Error> {
     if !matches!(oldstate, SmtpState::Rcpt) && !matches!(oldstate, SmtpState::Mail) {
-        writer.write_all("503 bad sequence of commands -- MAIL FROM first, that's how this works\r\n".as_bytes())?;
+        writer.write_all(
+            "503 bad sequence of commands -- MAIL FROM first, that's how this works\r\n".as_bytes(),
+        )?;
         return Ok(oldstate);
     }
 
     if !line.to_ascii_uppercase().starts_with("RCPT TO:") {
-        writer.write_all("501 try RCPT TO:<address>, the angle brackets are load-bearing\r\n".as_bytes())?;
+        writer.write_all(
+            "501 try RCPT TO:<address>, the angle brackets are load-bearing\r\n".as_bytes(),
+        )?;
         return Ok(oldstate);
     }
 
     let arg = &line["RCPT TO:".len()..];
     if arg.is_empty() || !arg.starts_with('<') || !arg.ends_with('>') {
-        writer.write_all("501 the angle brackets are load-bearing: RCPT TO:<address>\r\n".as_bytes())?;
+        writer.write_all(
+            "501 the angle brackets are load-bearing: RCPT TO:<address>\r\n".as_bytes(),
+        )?;
         return Ok(oldstate);
     }
 
@@ -193,7 +214,9 @@ pub fn handle_cmd_helo(
     let chunks: Vec<_> = line.split(' ').collect();
 
     if chunks.len() == 1 {
-        writer.write_all("501 HELO requires a domain argument -- who are you exactly?\r\n".as_bytes())?;
+        writer.write_all(
+            "501 HELO requires a domain argument -- who are you exactly?\r\n".as_bytes(),
+        )?;
         return Ok(oldstate);
     }
     if chunks.len() > 2 {
@@ -229,7 +252,9 @@ pub fn handle_cmd_ehlo(
     let chunks: Vec<_> = line.split(' ').collect();
 
     if chunks.len() == 1 {
-        writer.write_all("501 EHLO requires a domain argument -- who are you exactly?\r\n".as_bytes())?;
+        writer.write_all(
+            "501 EHLO requires a domain argument -- who are you exactly?\r\n".as_bytes(),
+        )?;
         return Ok(oldstate);
     }
     if chunks.len() > 2 {
@@ -284,20 +309,21 @@ pub fn handle_cmd_data(
     }
     match oldstate {
         SmtpState::Rcpt => {
-            writer.write_all("354 go ahead, I'll ignore it carefully; end with <CRLF>.<CRLF>\r\n".as_bytes())?;
+            writer.write_all(
+                "354 go ahead, I'll ignore it carefully; end with <CRLF>.<CRLF>\r\n".as_bytes(),
+            )?;
             Ok(SmtpState::Data)
         }
         _ => {
-            writer.write_all("503 bad sequence of commands -- who exactly is this mail for?\r\n".as_bytes())?;
+            writer.write_all(
+                "503 bad sequence of commands -- who exactly is this mail for?\r\n".as_bytes(),
+            )?;
             Ok(oldstate)
         }
     }
 }
 
-fn handle_cmd_unknown(
-    oldstate: SmtpState,
-    mut writer: impl Write,
-) -> Result<SmtpState, Error> {
+fn handle_cmd_unknown(oldstate: SmtpState, mut writer: impl Write) -> Result<SmtpState, Error> {
     writer.write_all("500 command unrecognized -- did you even read the RFC?\r\n".as_bytes())?;
     Ok(oldstate)
 }
@@ -320,7 +346,9 @@ pub fn handle_client(fin: impl Read, fout: impl Write, domain: &str) -> Result<(
                 SmtpState::Data => {
                     // In data mode, consume lines until the end-of-data indicator (RFC 5321 §4.5.2).
                     if line == "." {
-                        writer.write_all("250 duly noted and promptly ignored, thanks\r\n".as_bytes())?;
+                        writer.write_all(
+                            "250 duly noted and promptly ignored, thanks\r\n".as_bytes(),
+                        )?;
                         state = SmtpState::Hello;
                     }
                 }

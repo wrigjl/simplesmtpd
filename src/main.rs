@@ -37,7 +37,8 @@ use std::io;
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
-    let domain = args.windows(2)
+    let domain = args
+        .windows(2)
         .find(|w| w[0] == "--domain")
         .map(|w| w[1].as_str())
         .unwrap_or("simplesmtp.thought.net");
