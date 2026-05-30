@@ -12,6 +12,11 @@ Restart=on-failure
 StandardError=journal
 StandardInput=socket
 Type=simple
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
 
 [Install]
 WantedBy=multi-user.target
