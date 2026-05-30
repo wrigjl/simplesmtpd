@@ -1,6 +1,6 @@
 [Unit]
 Description=SimpleSMTPD server
-Documentation=man:simplesmtpd(8)
+Documentation=https://github.com/wrigjl/simplesmtpd
 Requires=simplesmtpd.socket
 After=network.target auditd.service
 
