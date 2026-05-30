@@ -46,3 +46,7 @@ systemctl enable --now simplesmtpd.socket
 
 The socket unit listens on port 8025. Incoming connections are handed off
 to `simplesmtpd@.service` via systemd socket activation (`Accept=yes`).
+
+The service runs with filesystem sandboxing enabled (`ProtectSystem=strict`,
+`ProtectHome=yes`, `PrivateTmp=yes`, `PrivateDevices=yes`, `NoNewPrivileges=yes`).
+The process has no writable filesystem access and cannot escalate privileges.
