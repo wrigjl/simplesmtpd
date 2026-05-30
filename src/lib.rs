@@ -38,7 +38,6 @@ use std::{
     str::FromStr,
 };
 
-const DOMAIN: &str = "simplesmtp.thought.net";
 
 pub enum SmtpState {
     Start,
@@ -94,12 +93,13 @@ pub fn handle_cmd_quit(
     line: &str,
     oldstate: SmtpState,
     mut writer: impl Write,
+    domain: &str,
 ) -> Result<SmtpState, Error> {
     if line.split_ascii_whitespace().count() > 1 {
         writer.write_all("501 QUIT takes no arguments -- it's literally one word\r\n".as_bytes())?;
         return Ok(oldstate);
     }
-    writer.write_all(format!("221 {} fine, goodbye, don't let the door hit you\r\n", DOMAIN).as_bytes())?;
+    writer.write_all(format!("221 {} fine, goodbye, don't let the door hit you\r\n", domain).as_bytes())?;
     Ok(SmtpState::Quit)
 }
 
@@ -188,6 +188,7 @@ pub fn handle_cmd_helo(
     line: &str,
     oldstate: SmtpState,
     mut writer: impl Write,
+    domain: &str,
 ) -> Result<SmtpState, Error> {
     let chunks: Vec<_> = line.split(' ').collect();
 
@@ -206,14 +207,14 @@ pub fn handle_cmd_helo(
             Ok(oldstate)
         }
         Ok(_) => {
-            writer.write_all(format!("250 {} howdy, I guess\r\n", DOMAIN).as_bytes())?;
+            writer.write_all(format!("250 {} howdy, I guess\r\n", domain).as_bytes())?;
             Ok(SmtpState::Hello)
         }
     }
 }
 
-fn cmd_ehlo_response(mut writer: impl Write) -> Result<SmtpState, Error> {
-    writer.write_all(format!("250-{} oh, it's you\r\n", DOMAIN).as_bytes())?;
+fn cmd_ehlo_response(mut writer: impl Write, domain: &str) -> Result<SmtpState, Error> {
+    writer.write_all(format!("250-{} oh, it's you\r\n", domain).as_bytes())?;
     writer.write_all("250-EXPN\r\n".as_bytes())?;
     writer.write_all("250 HELP\r\n".as_bytes())?;
     Ok(SmtpState::Hello)
@@ -223,6 +224,7 @@ pub fn handle_cmd_ehlo(
     line: &str,
     oldstate: SmtpState,
     mut writer: impl Write,
+    domain: &str,
 ) -> Result<SmtpState, Error> {
     let chunks: Vec<_> = line.split(' ').collect();
 
@@ -251,7 +253,7 @@ pub fn handle_cmd_ehlo(
         let inner = &arg[1..arg.len() - 1];
 
         if std::net::IpAddr::from_str(inner).is_ok() {
-            return cmd_ehlo_response(writer);
+            return cmd_ehlo_response(writer, domain);
         }
 
         if let Some(addr) = inner.strip_prefix("IPv6:") {
@@ -259,7 +261,7 @@ pub fn handle_cmd_ehlo(
                 writer.write_all("501 that's not a valid IPv6 address, nice try\r\n".as_bytes())?;
                 return Ok(oldstate);
             }
-            return cmd_ehlo_response(writer);
+            return cmd_ehlo_response(writer, domain);
         }
 
         // General address literal — accept without further validation.
@@ -268,7 +270,7 @@ pub fn handle_cmd_ehlo(
         return Ok(oldstate);
     }
 
-    cmd_ehlo_response(writer)
+    cmd_ehlo_response(writer, domain)
 }
 
 pub fn handle_cmd_data(
@@ -300,13 +302,13 @@ fn handle_cmd_unknown(
     Ok(oldstate)
 }
 
-pub fn handle_client(fin: impl Read, fout: impl Write) -> Result<(), Error> {
+pub fn handle_client(fin: impl Read, fout: impl Write, domain: &str) -> Result<(), Error> {
     let mut writer = BufWriter::new(fout);
     let reader = BufReader::new(fin);
 
     let mut state = SmtpState::Start;
 
-    writer.write_all(format!("220 {} welcome, I guess\r\n", DOMAIN).as_bytes())?;
+    writer.write_all(format!("220 {} welcome, I guess\r\n", domain).as_bytes())?;
     writer.flush()?;
 
     for res in reader.lines() {
@@ -331,13 +333,13 @@ pub fn handle_client(fin: impl Read, fout: impl Write) -> Result<(), Error> {
 
                     match cmd.as_str() {
                         "DATA" => state = handle_cmd_data(&line, state, &mut writer)?,
-                        "EHLO" => state = handle_cmd_ehlo(&line, state, &mut writer)?,
+                        "EHLO" => state = handle_cmd_ehlo(&line, state, &mut writer, domain)?,
                         "EXPN" => state = handle_cmd_expn(&line, state, &mut writer)?,
-                        "HELO" => state = handle_cmd_helo(&line, state, &mut writer)?,
+                        "HELO" => state = handle_cmd_helo(&line, state, &mut writer, domain)?,
                         "HELP" => state = handle_cmd_help(state, &mut writer)?,
                         "MAIL" => state = handle_cmd_mail(&line, state, &mut writer)?,
                         "NOOP" => state = handle_cmd_noop(state, &mut writer)?,
-                        "QUIT" => state = handle_cmd_quit(&line, state, &mut writer)?,
+                        "QUIT" => state = handle_cmd_quit(&line, state, &mut writer, domain)?,
                         "RCPT" => state = handle_cmd_rcpt(&line, state, &mut writer)?,
                         "RSET" => state = handle_cmd_rset(&line, state, &mut writer)?,
                         "VRFY" => state = handle_cmd_vrfy(&line, state, &mut writer)?,

@@ -36,6 +36,11 @@
 use std::io;
 
 fn main() -> io::Result<()> {
-    simplesmtpd::handle_client(io::stdin(), io::stdout())?;
+    let args: Vec<String> = std::env::args().collect();
+    let domain = args.windows(2)
+        .find(|w| w[0] == "--domain")
+        .map(|w| w[1].as_str())
+        .unwrap_or("simplesmtp.thought.net");
+    simplesmtpd::handle_client(io::stdin(), io::stdout(), domain)?;
     Ok(())
 }

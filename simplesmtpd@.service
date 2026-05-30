@@ -5,7 +5,7 @@ Requires=simplesmtpd.socket
 After=network.target auditd.service
 
 [Service]
-ExecStart=-/home/ubuntu/simplesmtpd/target/debug/simplesmtpd
+ExecStart=-/usr/local/bin/simplesmtpd
 ExecReload=/bin/kill $MAINPID
 KillMode=process
 Restart=on-failure

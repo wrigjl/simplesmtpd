@@ -8,7 +8,7 @@ fn code(buf: &[u8]) -> u16 {
 // Run a full session through handle_client and return the output.
 fn session(input: &str) -> String {
     let mut output = Vec::new();
-    simplesmtpd::handle_client(input.as_bytes(), &mut output).unwrap();
+    simplesmtpd::handle_client(input.as_bytes(), &mut output, "test.example.com").unwrap();
     String::from_utf8(output).unwrap()
 }
 
@@ -26,7 +26,7 @@ fn session_codes(output: &str) -> Vec<u16> {
 #[test]
 fn helo_domain() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_helo("HELO domain.com", SmtpState::Start, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_helo("HELO domain.com", SmtpState::Start, &mut buf, "test.example.com").unwrap();
     assert!(matches!(state, SmtpState::Hello));
     assert_eq!(code(&buf), 250);
 }
@@ -34,7 +34,7 @@ fn helo_domain() {
 #[test]
 fn helo_missing_arg() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_helo("HELO", SmtpState::Start, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_helo("HELO", SmtpState::Start, &mut buf, "test.example.com").unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 501);
 }
@@ -42,7 +42,7 @@ fn helo_missing_arg() {
 #[test]
 fn helo_too_many_args() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_helo("HELO a.com b.com", SmtpState::Start, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_helo("HELO a.com b.com", SmtpState::Start, &mut buf, "test.example.com").unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 501);
 }
@@ -50,7 +50,7 @@ fn helo_too_many_args() {
 #[test]
 fn helo_invalid_domain() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_helo("HELO not_a_domain!", SmtpState::Start, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_helo("HELO not_a_domain!", SmtpState::Start, &mut buf, "test.example.com").unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 501);
 }
@@ -58,7 +58,7 @@ fn helo_invalid_domain() {
 #[test]
 fn helo_mid_session_resets_to_hello() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_helo("HELO domain.com", SmtpState::Mail, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_helo("HELO domain.com", SmtpState::Mail, &mut buf, "test.example.com").unwrap();
     assert!(matches!(state, SmtpState::Hello));
     assert_eq!(code(&buf), 250);
 }
@@ -68,28 +68,28 @@ fn helo_mid_session_resets_to_hello() {
 #[test]
 fn ehlo_domain() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO domain.com", SmtpState::Start, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_ehlo("EHLO domain.com", SmtpState::Start, &mut buf, "test.example.com").unwrap();
     assert!(matches!(state, SmtpState::Hello));
 }
 
 #[test]
 fn ehlo_ip4() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO [8.8.8.8]", SmtpState::Start, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_ehlo("EHLO [8.8.8.8]", SmtpState::Start, &mut buf, "test.example.com").unwrap();
     assert!(matches!(state, SmtpState::Hello));
 }
 
 #[test]
 fn ehlo_ip6() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO [IPv6:ff01::1]", SmtpState::Start, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_ehlo("EHLO [IPv6:ff01::1]", SmtpState::Start, &mut buf, "test.example.com").unwrap();
     assert!(matches!(state, SmtpState::Hello));
 }
 
 #[test]
 fn ehlo_missing_arg() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO", SmtpState::Start, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_ehlo("EHLO", SmtpState::Start, &mut buf, "test.example.com").unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 501);
 }
@@ -97,7 +97,7 @@ fn ehlo_missing_arg() {
 #[test]
 fn ehlo_too_many_args() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO a.com b.com", SmtpState::Start, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_ehlo("EHLO a.com b.com", SmtpState::Start, &mut buf, "test.example.com").unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 501);
 }
@@ -105,7 +105,7 @@ fn ehlo_too_many_args() {
 #[test]
 fn ehlo_invalid_domain() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO not_a_domain!", SmtpState::Start, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_ehlo("EHLO not_a_domain!", SmtpState::Start, &mut buf, "test.example.com").unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 501);
 }
@@ -113,7 +113,7 @@ fn ehlo_invalid_domain() {
 #[test]
 fn ehlo_invalid_ipv6() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO [IPv6:not::valid::addr]", SmtpState::Start, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_ehlo("EHLO [IPv6:not::valid::addr]", SmtpState::Start, &mut buf, "test.example.com").unwrap();
     assert!(matches!(state, SmtpState::Start));
     assert_eq!(code(&buf), 501);
 }
@@ -121,14 +121,14 @@ fn ehlo_invalid_ipv6() {
 #[test]
 fn ehlo_mid_session_resets_to_hello() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_ehlo("EHLO domain.com", SmtpState::Mail, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_ehlo("EHLO domain.com", SmtpState::Mail, &mut buf, "test.example.com").unwrap();
     assert!(matches!(state, SmtpState::Hello));
 }
 
 #[test]
 fn ehlo_response_advertises_expn() {
     let mut buf = Vec::new();
-    simplesmtpd::handle_cmd_ehlo("EHLO domain.com", SmtpState::Start, &mut buf).unwrap();
+    simplesmtpd::handle_cmd_ehlo("EHLO domain.com", SmtpState::Start, &mut buf, "test.example.com").unwrap();
     let output = String::from_utf8(buf).unwrap();
     assert!(output.contains("EXPN"), "EHLO response must advertise EXPN");
 }
@@ -444,7 +444,7 @@ fn help_usable_before_ehlo() {
 #[test]
 fn quit_success() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_quit("QUIT", SmtpState::Hello, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_quit("QUIT", SmtpState::Hello, &mut buf, "test.example.com").unwrap();
     assert!(matches!(state, SmtpState::Quit));
     assert_eq!(code(&buf), 221);
 }
@@ -452,7 +452,7 @@ fn quit_success() {
 #[test]
 fn quit_221_includes_domain() {
     let mut buf = Vec::new();
-    simplesmtpd::handle_cmd_quit("QUIT", SmtpState::Hello, &mut buf).unwrap();
+    simplesmtpd::handle_cmd_quit("QUIT", SmtpState::Hello, &mut buf, "test.example.com").unwrap();
     let response = String::from_utf8(buf).unwrap();
     // RFC 5321 §4.2.2: 221 response must begin with the server domain.
     assert!(response.starts_with("221 ") && response.len() > 4 && !response[4..].starts_with(' '));
@@ -461,7 +461,7 @@ fn quit_221_includes_domain() {
 #[test]
 fn quit_with_arguments_rejected() {
     let mut buf = Vec::new();
-    let state = simplesmtpd::handle_cmd_quit("QUIT now", SmtpState::Hello, &mut buf).unwrap();
+    let state = simplesmtpd::handle_cmd_quit("QUIT now", SmtpState::Hello, &mut buf, "test.example.com").unwrap();
     assert!(matches!(state, SmtpState::Hello));
     assert_eq!(code(&buf), 501);
 }
